@@ -1,0 +1,403 @@
+<title>FAST Queue Sky</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@300;400;500&display=swap">
+<style>
+/* Layout: observatory console. Square sky dome left, queue panel right; stacks on phones. Single deliberate night palette, plus a red-light mode. */
+:root{
+  --bg:#070b14; --panel:#0d1322; --line:#1c2640; --ink:#d9e2f2; --mute:#7f8cab; --faint:#3a4766;
+  --dome:#0a1020; --dome-edge:#2b3a5e; --limit:#e8b45a;
+  --p1:#ff7a59; --p2:#f4c14d; --p3:#5fd4c4; --p4:#8b9cc8; --p9:#56607a;
+  --moon:#f3efe2; --accent:#7fb2ff;
+  --b-u:#b48cff; --b-g:#4fd18b; --b-r:#ff6b6b; --b-i:#c98a5a; --b-z:#9a7dd8; --b-y:#8a8f9e;
+  --b-o:#ff9f43; --b-c:#4cc3ff; --b-w:#d9d9d9; --b-L:#c7b3ff; --b-B:#5a8cff; --b-V:#c8e06b; --b-x:#9aa6c4;
+  --f-display:"Instrument Serif",Georgia,"Times New Roman",serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-data:"Martian Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
+}
+body.red{
+  --bg:#0a0000; --panel:#140303; --line:#3a0a0a; --ink:#ff6b5e; --mute:#b5392f; --faint:#5a1712;
+  --dome:#100202; --dome-edge:#5a1712; --limit:#ff3b2a;
+  --p1:#ff5a48; --p2:#e2412f; --p3:#c4382a; --p4:#8f2a20; --p9:#5a1a14; --moon:#ff8a7a; --accent:#ff5a48;
+  --b-u:#ff8f80; --b-g:#ff7a6a; --b-r:#ff4a38; --b-i:#c4382a; --b-z:#a8301f; --b-y:#8f2a20;
+  --b-o:#ff6252; --b-c:#ff9a8c; --b-w:#ffb3a8; --b-L:#e2412f; --b-B:#ffa496; --b-V:#ff7060; --b-x:#b5392f;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 24px}
+a{color:var(--accent)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:clamp(28px,4vw,40px);line-height:1;margin:0;letter-spacing:.2px;text-wrap:balance}
+.brand h1 em{color:var(--limit)}
+.brand .sub{font-family:var(--f-data);font-size:11px;color:var(--mute);letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ctl{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px;color:var(--mute)}
+.ctl input[type=date]{background:transparent;border:0;color:var(--ink);font-family:var(--f-data);font-size:12px}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:12px;color:var(--ink)}
+.btn:hover{border-color:var(--faint)}
+.btn[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+
+.main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:880px){.main{grid-template-columns:minmax(0,1fr)}}
+
+.skycard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.clocks{display:flex;flex-wrap:wrap;gap:6px 18px;font-family:var(--f-data);font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.clocks b{color:var(--ink);font-weight:500}
+.clocks .big b{font-size:20px;color:var(--ink)}
+.skybox{position:relative;width:100%;max-width:640px;margin:0 auto;aspect-ratio:1/1}
+#sky{width:100%;height:100%;display:block;touch-action:manipulation}
+.tgt{cursor:pointer;transition:r .15s}
+.tgt:hover{stroke:var(--ink);stroke-width:1.5}
+.lbl{font-family:var(--f-data);font-size:9px;fill:var(--mute);pointer-events:none}
+.card-label{font-family:var(--f-data);font-size:11px;fill:var(--mute);letter-spacing:.08em}
+
+.tip{position:absolute;pointer-events:none;background:color-mix(in srgb,var(--bg) 92%,transparent);border:1px solid var(--faint);border-radius:10px;padding:9px 11px;max-width:260px;font-size:12px;box-shadow:0 8px 24px rgba(0,0,0,.45);z-index:5}
+.tip h4{margin:0 0 4px;font-family:var(--f-data);font-size:13px;font-weight:500;display:flex;gap:8px;align-items:center}
+.tip .kv{font-family:var(--f-data);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.tip .note{margin-top:6px;color:var(--ink);opacity:.85;font-size:11.5px}
+.pill{display:inline-block;font-family:var(--f-data);font-size:10px;padding:1px 6px;border-radius:99px;color:var(--bg);font-weight:500}
+
+.timeline{display:flex;flex-direction:column;gap:6px}
+.trow{display:flex;align-items:center;gap:10px}
+#tslider{flex:1;accent-color:var(--limit)}
+.tband{position:relative;height:10px;border-radius:5px;overflow:hidden;background:var(--faint)}
+.tband span{position:absolute;top:0;bottom:0}
+.tlabels{display:flex;justify-content:space-between;font-family:var(--f-data);font-size:10px;color:var(--mute);font-variant-numeric:tabular-nums}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mute);align-items:center}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+.side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:400;font-size:24px;margin:0 0 2px}
+.eyebrow{font-family:var(--f-data);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--mute)}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:3px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;color:var(--mute)}
+.chip[aria-pressed=true]{color:var(--ink);border-color:var(--faint);background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.search{flex:1 1 140px;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px}
+.magrow{display:flex;align-items:center;gap:8px;font-family:var(--f-data);font-size:11px;color:var(--mute);margin-top:8px;flex-wrap:wrap}
+.magrow input[type=range]{flex:1;min-width:100px;accent-color:var(--accent)}
+.list{margin-top:10px;max-height:460px;overflow:auto;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:10px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.row:hover,.row.sel{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.row .nm{font-family:var(--f-data);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .nm small{color:var(--mute);font-size:10.5px;margin-left:6px}
+.row .num{font-family:var(--f-data);font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums;text-align:right}
+.row i{width:9px;height:9px;border-radius:50%}
+.empty{color:var(--mute);font-size:13px;padding:14px 4px}
+
+.detail .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.detail .name{font-family:var(--f-data);font-size:17px;font-weight:500;word-break:break-all}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}
+.fact{border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.fact .v{font-family:var(--f-data);font-size:14px;font-variant-numeric:tabular-nums}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.links a{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:5px 10px;text-decoration:none}
+.links a:hover{border-color:var(--accent)}
+.notes{font-size:13px;color:var(--ink);opacity:.9;margin-top:10px;overflow-wrap:anywhere}
+#altchart,#lcchart{width:100%;height:auto;display:block;margin-top:6px}
+.lclegend{display:flex;flex-wrap:wrap;gap:4px 12px;font-family:var(--f-data);font-size:10.5px;color:var(--mute);margin-top:4px}
+.lclegend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
+.section{margin-top:14px}
+.close{background:none;border:0;color:var(--mute);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px}
+footer{font-size:12px;color:var(--mute);border-top:1px solid var(--line);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px 18px}
+@media (prefers-reduced-motion:reduce){.tgt{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>FAST queue, <em>tonight</em></h1>
+      <div class="sub">Tillinghast 1.5 m · FLWO, Mt. Hopkins · 31.681°N 110.878°W · 2344 m</div>
+    </div>
+    <div class="controls">
+      <label class="ctl" for="night">Night of <input type="date" id="night"></label>
+      <button class="btn" id="nowBtn" type="button">Now</button>
+      <button class="btn" id="playBtn" type="button" aria-pressed="false">▶ Play night</button>
+      <button class="btn" id="redBtn" type="button" aria-pressed="false">Red light</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="skycard" aria-label="Sky map">
+      <div class="clocks">
+        <span class="big"><b id="cMST">--:--</b> MST</span>
+        <span>UTC <b id="cUTC">--:--</b></span>
+        <span>LST <b id="cLST">--:--</b></span>
+        <span>Sun <b id="cSun">--</b></span>
+        <span>Moon <b id="cMoon">--</b></span>
+        <span>Above airmass 2 <b id="cUp">--</b></span>
+      </div>
+      <div class="skybox" id="skybox">
+        <svg id="sky" viewBox="-330 -330 660 660" role="img" aria-label="All-sky map from FLWO with queue targets"></svg>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+      <div class="timeline">
+        <div class="tband" id="tband"></div>
+        <div class="trow"><input type="range" id="tslider" min="0" max="100" step="1" value="0" aria-label="Time of night"></div>
+        <div class="tlabels" id="tlabels"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--p1)"></i>P1</span>
+        <span><i style="background:var(--p2)"></i>P2</span>
+        <span><i style="background:var(--p3)"></i>P3</span>
+        <span><i style="background:var(--p4)"></i>P4</span>
+        <span>Dot size = brightness</span>
+        <span><span style="color:var(--limit)">— —</span> 30° alt (airmass 2)</span>
+        <span>Faded = below airmass 2</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="panel detail" id="detail" hidden></div>
+      <div class="panel">
+        <div class="eyebrow" id="listEyebrow">Up now</div>
+        <h2 id="listTitle">Observable at this time</h2>
+        <div class="filters" id="chips"></div>
+        <div class="filters">
+          <input class="search" id="q" type="search" placeholder="Search name, type, notes" aria-label="Search targets">
+          <button class="chip" id="hideObs" type="button" aria-pressed="false">Hide observed</button>
+          <button class="chip" id="showAll" type="button" aria-pressed="false">Show set targets</button>
+        </div>
+        <div class="magrow"><label for="mag">r ≤ <b id="magv">19.5</b></label><input type="range" id="mag" min="13" max="20.5" step="0.1" value="19.5"></div>
+        <div class="list" id="list"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <span id="asof"></span>
+    <span>Positions use low-precision Sun/Moon models (good to a few arcmin); twilight shading marks −12°.</span>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const LAT=31.6810, LON=-110.8783, TZ=-7; // MST (Arizona, no DST)
+const D=Math.PI/180;
+const $=s=>document.querySelector(s);
+const mod=(a,b)=>((a%b)+b)%b;
+const pad=n=>String(n).padStart(2,"0");
+
+/* ---------- astronomy ---------- */
+const jd=t=>t/86400000+2440587.5;
+const lst=t=>mod(280.46061837+360.98564736629*(jd(t)-2451545)+LON,360);
+function altaz(ra,dec,L){const H=(L-ra)*D,d=dec*D,p=LAT*D;
+  const sa=Math.sin(p)*Math.sin(d)+Math.cos(p)*Math.cos(d)*Math.cos(H);const alt=Math.asin(sa);
+  const az=Math.atan2(-Math.sin(H)*Math.cos(d),Math.cos(p)*Math.sin(d)-Math.sin(p)*Math.cos(d)*Math.cos(H));
+  return [alt/D,mod(az/D,360)];}
+function ecl2eq(lam,bet,n){const e=(23.439-4e-7*n)*D,l=lam*D,b=bet*D;
+  const ra=Math.atan2(Math.sin(l)*Math.cos(e)-Math.tan(b)*Math.sin(e),Math.cos(l));
+  const dec=Math.asin(Math.sin(b)*Math.cos(e)+Math.cos(b)*Math.sin(e)*Math.sin(l));return [mod(ra/D,360),dec/D];}
+function sun(t){const n=jd(t)-2451545,L=280.460+0.9856474*n,g=(357.528+0.9856003*n)*D;
+  return ecl2eq(L+1.915*Math.sin(g)+0.020*Math.sin(2*g),0,n);}
+function moon(t){const n=jd(t)-2451545;const Lp=218.316+13.176396*n,M=(134.963+13.064993*n)*D,F=(93.272+13.229350*n)*D,
+  Ms=(357.529+0.98560028*n)*D,Dm=(297.850+12.190749*n)*D;
+  const lam=Lp+6.289*Math.sin(M)+1.274*Math.sin(2*Dm-M)+0.658*Math.sin(2*Dm)+0.214*Math.sin(2*M)-0.186*Math.sin(Ms)-0.114*Math.sin(2*F);
+  const bet=5.128*Math.sin(F)+0.281*Math.sin(M+F)+0.278*Math.sin(M-F)+0.173*Math.sin(2*Dm-F);
+  return ecl2eq(lam,bet,n);}
+function sep(r1,d1,r2,d2){const c=Math.sin(d1*D)*Math.sin(d2*D)+Math.cos(d1*D)*Math.cos(d2*D)*Math.cos((r1-r2)*D);return Math.acos(Math.min(1,Math.max(-1,c)))/D;}
+const airmass=a=>a<=0?Infinity:1/Math.sin((a+244/(165+47*Math.pow(a,1.1)))*D);
+const fmtT=t=>{const d=new Date(t+TZ*3600000);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes());};
+const fmtU=t=>{const d=new Date(t);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes());};
+const fmtH=deg=>{const h=deg/15;return pad(Math.floor(h))+":"+pad(Math.floor((h%1)*60));};
+
+/* ---------- state ---------- */
+const T=DATA.targets.map((x,i)=>({...x,i}));
+const S={pri:new Set([1,2,3,4,9]),mag:19.5,hideObs:false,showAll:false,q:"",sel:null,t:0,night:null,playing:null};
+try{const r=localStorage.getItem("fastsky.red");if(r==="1")document.body.classList.add("red");}catch(e){}
+
+/* ---------- night setup ---------- */
+function nightOf(dateStr){ // evening date in MST
+  const [y,m,d]=dateStr.split("-").map(Number);
+  const t0=Date.UTC(y,m-1,d,16-TZ,0); const step=5*60000; const pts=[];
+  for(let t=t0;t<=t0+17*3600000;t+=step){const s=sun(t);pts.push([t,altaz(s[0],s[1],lst(t))[0]]);}
+  const cross=(th,dir)=>{for(let i=1;i<pts.length;i++){const a=pts[i-1][1],b=pts[i][1];
+    if(dir<0&&a>=th&&b<th||dir>0&&a<th&&b>=th){return pts[i-1][0]+(pts[i][0]-pts[i-1][0])*(a-th)/(a-b);}}return null;};
+  const N={set:cross(-0.833,-1),e12:cross(-12,-1),e18:cross(-18,-1),m18:cross(-18,1),m12:cross(-12,1),rise:cross(-0.833,1)};
+  N.grid=[];for(let t=N.set;t<=N.rise;t+=10*60000)N.grid.push(t);
+  N.alts=T.map(x=>N.grid.map(t=>altaz(x.ra,x.dec,lst(t))[0]));
+  N.moonAlts=N.grid.map(t=>{const m=moon(t);return altaz(m[0],m[1],lst(t))[0];});
+  return N;}
+function windowStr(i){const a=S.night.alts[i],g=S.night.grid;let s=null,e=null;
+  for(let k=0;k<a.length;k++){if(g[k]<S.night.e12||g[k]>S.night.m12)continue;if(a[k]>=30){if(s===null)s=g[k];e=g[k];}}
+  return s===null?"never above airmass 2 in dark time":fmtT(s)+"–"+fmtT(e)+" MST ("+((e-s)/3600000).toFixed(1)+" h)";}
+
+/* ---------- sky drawing ---------- */
+const R=300; const NS="http://www.w3.org/2000/svg";
+const el=(n,a={},p)=>{const e=document.createElementNS(NS,n);for(const k in a){const v=a[k];
+  if(typeof v==="string"&&v.includes("var(")&&k!=="style")e.style.setProperty(k,v);else e.setAttribute(k,v);}
+  if(p)p.appendChild(e);return e;};
+const proj=(alt,az)=>{const r=(90-alt)/90*R;return [-r*Math.sin(az*D),-r*Math.cos(az*D)];};
+const sky=$("#sky"); let gStatic,gDyn;
+function drawStatic(){sky.innerHTML="";
+  const defs=el("defs",{},sky);const rg=el("radialGradient",{id:"domeg"},defs);
+  el("stop",{offset:"0%","stop-color":"var(--dome)"},rg);el("stop",{offset:"100%","stop-color":"var(--bg)"},rg);
+  gStatic=el("g",{},sky);
+  el("circle",{cx:0,cy:0,r:R,fill:"url(#domeg)",stroke:"var(--dome-edge)","stroke-width":1.5},gStatic);
+  [60].forEach(a=>el("circle",{cx:0,cy:0,r:(90-a)/90*R,fill:"none",stroke:"var(--line)","stroke-width":1},gStatic));
+  el("circle",{cx:0,cy:0,r:(60/90)*R,fill:"none",stroke:"var(--limit)","stroke-width":1.2,"stroke-dasharray":"5 5",opacity:.8},gStatic);
+  for(let az=0;az<360;az+=45){const [x,y]=proj(0,az);el("line",{x1:0,y1:0,x2:x,y2:y,stroke:"var(--line)","stroke-width":.7},gStatic);}
+  [["N",0],["E",90],["S",180],["W",270]].forEach(([s,az])=>{const [x,y]=proj(-7,az);const t=el("text",{x,y:y+4,"text-anchor":"middle",class:"card-label"},gStatic);t.textContent=s;});
+  [[60,"60°"],[30,"30°"]].forEach(([a,s])=>{const t=el("text",{x:4,y:-(90-a)/90*R-4,class:"lbl"},gStatic);t.textContent=s;});
+  gDyn=el("g",{},sky);}
+const pcol=p=>`var(--p${[1,2,3,4].includes(p)?p:9})`;
+const rad=m=>m==null?3:Math.max(2.6,Math.min(9,2.6+(19.6-m)*1.25));
+function visible(x){ if(!S.pri.has([1,2,3,4].includes(x.p)?x.p:9))return false;
+  if(x.m!=null&&x.m>S.mag)return false; if(S.hideObs&&/^y/i.test(x.ob))return false;
+  if(S.q){const q=S.q.toLowerCase();if(!(x.n+" "+x.t+" "+x.no).toLowerCase().includes(q))return false;}return true;}
+let cur=[];
+function drawDyn(){gDyn.innerHTML="";const t=S.t,L=lst(t);
+  const m=moon(t),[ma,mz]=altaz(m[0],m[1],L),s=sun(t);
+  const el2=sep(m[0],m[1],s[0],s[1]),illum=(1-Math.cos(el2*D))/2; S.moon={ra:m[0],dec:m[1],alt:ma,illum};
+  if(ma>-2){const [x,y]=proj(Math.max(ma,0),mz);
+    el("circle",{cx:x,cy:y,r:22,fill:"var(--moon)",opacity:.06},gDyn);
+    el("circle",{cx:x,cy:y,r:9,fill:"var(--faint)"},gDyn);
+    el("circle",{cx:x,cy:y,r:9,fill:"var(--moon)",opacity:.25+.75*illum},gDyn);
+    const tx=el("text",{x:x+13,y:y+3,class:"lbl"},gDyn);tx.textContent="Moon "+Math.round(illum*100)+"%";}
+  cur=T.map(x=>{const [a,z]=altaz(x.ra,x.dec,L);return {x,a,z};});
+  const vis=cur.filter(o=>o.a>0&&visible(o.x)).sort((A,B)=>B.x.p-A.x.p||(B.x.m??0)-(A.x.m??0));
+  for(const o of vis){const [px,py]=proj(o.a,o.z);const up=o.a>=30;
+    const c=el("circle",{cx:px,cy:py,r:rad(o.x.m),fill:pcol(o.x.p),class:"tgt","fill-opacity":up?.95:.28,
+      stroke:up?"var(--bg)":pcol(o.x.p),"stroke-width":up?.8:.8,"stroke-opacity":up?.6:.6,"data-i":o.x.i,tabindex:0,role:"button","aria-label":o.x.n},gDyn);
+    if(/^y/i.test(o.x.ob))el("circle",{cx:px,cy:py,r:rad(o.x.m)+3,fill:"none",stroke:"var(--ink)","stroke-width":1,opacity:.7},gDyn);
+    if(S.sel===o.x.i){el("circle",{cx:px,cy:py,r:rad(o.x.m)+7,fill:"none",stroke:"var(--accent)","stroke-width":1.6},gDyn);
+      const tl=el("text",{x:px+rad(o.x.m)+9,y:py+3,class:"lbl",style:"fill:var(--ink)"},gDyn);tl.textContent=o.x.n;}
+    else if(up&&o.x.p<=2){const tl=el("text",{x:px+rad(o.x.m)+3,y:py-rad(o.x.m)-1,class:"lbl"},gDyn);tl.textContent=o.x.n.replace(/^(AT|SN)2026/,"");}}
+  // clocks
+  $("#cMST").textContent=fmtT(t);$("#cUTC").textContent=fmtU(t);$("#cLST").textContent=fmtH(L);
+  const sa=altaz(s[0],s[1],L)[0];$("#cSun").textContent=sa.toFixed(0)+"°"+(sa<-18?" (dark)":sa<-12?" (twilight)":"");
+  $("#cMoon").textContent=ma>0?Math.round(ma)+"° up, "+Math.round(illum*100)+"%":"set ("+Math.round(illum*100)+"%)";
+  const upN=cur.filter(o=>o.a>=30&&visible(o.x)).length;$("#cUp").textContent=upN+" / "+T.filter(visible).length;
+  renderList();if(S.sel!=null)renderDetail();}
+
+/* ---------- tooltip ---------- */
+const tip=$("#tip"),box=$("#skybox");
+function showTip(i,ev){const o=cur[i],x=o.x;const ms=S.moon?sep(x.ra,x.dec,S.moon.ra,S.moon.dec):null;
+  tip.innerHTML=`<h4><span class="pill" style="background:${pcol(x.p)}">P${x.p}</span>${esc(x.n)}</h4>
+  <div class="kv">r ${esc(x.mag||"?")} · alt ${o.a.toFixed(0)}° · X ${o.a>0?airmass(o.a).toFixed(2):"—"}${ms!=null?" · Moon "+ms.toFixed(0)+"°":""}</div>
+  ${x.t?`<div class="kv">${esc(x.t)}</div>`:""}
+  ${x.no?`<div class="note">${esc(x.no.length>160?x.no.slice(0,160)+"…":x.no)}</div>`:""}`;
+  tip.hidden=false;const b=box.getBoundingClientRect();let lx=ev.clientX-b.left+14,ly=ev.clientY-b.top+14;
+  const w=tip.offsetWidth,h=tip.offsetHeight;if(lx+w>b.width)lx=ev.clientX-b.left-w-14;if(ly+h>b.height)ly=ev.clientY-b.top-h-14;
+  tip.style.left=Math.max(0,lx)+"px";tip.style.top=Math.max(0,ly)+"px";}
+sky.addEventListener("pointermove",e=>{const i=e.target.getAttribute&&e.target.getAttribute("data-i");if(i!=null&&e.pointerType==="mouse")showTip(+i,e);else tip.hidden=true;});
+sky.addEventListener("pointerleave",()=>tip.hidden=true);
+sky.addEventListener("click",e=>{const i=e.target.getAttribute&&e.target.getAttribute("data-i");if(i!=null)select(+i);});
+sky.addEventListener("keydown",e=>{const i=e.target.getAttribute&&e.target.getAttribute("data-i");if(i!=null&&(e.key==="Enter"||e.key===" ")){e.preventDefault();select(+i);}});
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- list ---------- */
+function renderList(){const up=S.showAll?cur.filter(o=>visible(o.x)):cur.filter(o=>o.a>=30&&visible(o.x));
+  up.sort((A,B)=>A.x.p-B.x.p||(A.a>0?airmass(A.a):99)-(B.a>0?airmass(B.a):99));
+  $("#listEyebrow").textContent=(S.showAll?"All matching targets":"Above airmass 2 at "+fmtT(S.t)+" MST")+" · "+up.length;
+  $("#listTitle").textContent=S.showAll?"Whole queue":"Observable now";
+  const L=$("#list");if(!up.length){L.innerHTML=`<div class="empty">Nothing matching is above airmass 2 at this time. Move the slider, or loosen the filters.</div>`;return;}
+  L.innerHTML=up.map(o=>`<div class="row${S.sel===o.x.i?" sel":""}" data-i="${o.x.i}" tabindex="0" role="button">
+    <i style="background:${pcol(o.x.p)}"></i><span class="nm">${esc(o.x.n)}${o.x.t?`<small>${esc(o.x.t)}</small>`:""}</span>
+    <span class="num">r ${o.x.m!=null?o.x.m.toFixed(1):"?"}</span><span class="num">${o.a>0?"X "+airmass(o.a).toFixed(2):"set"}</span></div>`).join("");}
+$("#list").addEventListener("click",e=>{const r=e.target.closest(".row");if(r)select(+r.dataset.i);});
+$("#list").addEventListener("keydown",e=>{const r=e.target.closest(".row");if(r&&(e.key==="Enter"||e.key===" ")){e.preventDefault();select(+r.dataset.i);}});
+
+/* ---------- detail ---------- */
+function select(i){S.sel=i;drawDyn();const d=$("#detail");d.hidden=false;if(window.innerWidth<880)d.scrollIntoView({behavior:"smooth",block:"start"});}
+function renderDetail(){const x=T[S.sel],o=cur[S.sel],d=$("#detail");const ms=S.moon?sep(x.ra,x.dec,S.moon.ra,S.moon.dec):null;
+  const tnsName=x.n.replace(/^(AT|SN)\s?/,"");const tns=/^\d{4}[a-z]+$/.test(tnsName)?`https://www.wis-tns.org/object/${tnsName}`:"";
+  d.innerHTML=`<div class="top"><div><div class="eyebrow">Priority ${x.p}${x.t?" · "+esc(x.t):""}${/^y/i.test(x.ob)?" · observed":""}</div>
+    <div class="name">${esc(x.n)}</div></div><button class="close" id="closeD" type="button" aria-label="Close details">×</button></div>
+    <div class="facts">
+      <div class="fact"><div class="eyebrow">r-mag</div><div class="v">${esc(x.mag||"?")}</div></div>
+      <div class="fact"><div class="eyebrow">Alt / airmass</div><div class="v">${o.a.toFixed(0)}° / ${o.a>0?airmass(o.a).toFixed(2):"—"}</div></div>
+      <div class="fact"><div class="eyebrow">RA / Dec</div><div class="v">${x.ra.toFixed(3)} ${x.dec>=0?"+":""}${x.dec.toFixed(3)}</div></div>
+      <div class="fact"><div class="eyebrow">Moon sep</div><div class="v">${ms!=null?ms.toFixed(0)+"°":"—"}</div></div>
+    </div>
+    <div class="eyebrow">${x.lc&&x.lc.length?`Light curve · ${esc(x.lcs)} · ${x.lc.length} pts · last ${(NOWD-x.lc[x.lc.length-1][0]).toFixed(1)} d ago`:"Light curve · no photometry"}</div>
+    ${x.lc&&x.lc.length?`<svg id="lcchart" viewBox="0 0 340 180" role="img" aria-label="Light curve"></svg><div class="lclegend" id="lclegend"></div>`:""}
+    <div class="eyebrow section">Altitude tonight · above airmass 2: ${windowStr(S.sel)}</div>
+    <svg id="altchart" viewBox="0 0 340 150" role="img" aria-label="Altitude curve tonight"></svg>
+    ${x.no?`<div class="notes">${esc(x.no)}</div>`:""}
+    <div class="links">${x.o?`<a href="${esc(x.o)}" target="_blank" rel="noopener">Orcus ↗</a>`:""}${x.y?`<a href="${esc(x.y)}" target="_blank" rel="noopener">YSE-PZ ↗</a>`:""}${tns?`<a href="${tns}" target="_blank" rel="noopener">TNS ↗</a>`:""}</div>`;
+  $("#closeD").onclick=()=>{S.sel=null;d.hidden=true;drawDyn();};
+  drawChart(S.sel); if(x.lc&&x.lc.length)drawLC(S.sel);}
+const NOWD=jd(Date.now())-2400000.5-61000;
+const BANDS={u:"u",UVW1:"u",UVW2:"u",UVM2:"u",U:"u",g:"g",r:"r",i:"i",z:"z",y:"y",o:"o",c:"c",w:"w",L:"L",B:"B",V:"V"};
+const BNAME={u:"u/UV",g:"g",r:"r",i:"i",z:"z",y:"y",o:"ATLAS o",c:"ATLAS c",w:"PS w",L:"GOTO L",B:"B",V:"V",x:"other"};
+const INAME={Z:"ZTF",R:"LSST",A:"ATLAS",G:"GOTO",P:"Pan-STARRS",W:"WFST",F:"follow-up",O:"other"};
+const bcol=b=>`var(--b-${BANDS[b]||"x"})`;
+function marker(svg,x,y,ins,col,title){let m;const s=3.6;
+  if(ins==="R")m=el("polygon",{points:`${x},${y-s-1} ${x+s+1},${y} ${x},${y+s+1} ${x-s-1},${y}`,fill:col},svg);
+  else if(ins==="A")m=el("rect",{x:x-s+.5,y:y-s+.5,width:2*s-1,height:2*s-1,fill:col},svg);
+  else if(ins==="G")m=el("polygon",{points:`${x},${y-s-.5} ${x+s},${y+s-.5} ${x-s},${y+s-.5}`,fill:col},svg);
+  else if(ins==="P"){m=el("g",{},svg);el("line",{x1:x-s,y1:y-s,x2:x+s,y2:y+s,stroke:col,"stroke-width":1.8},m);el("line",{x1:x-s,y1:y+s,x2:x+s,y2:y-s,stroke:col,"stroke-width":1.8},m);}
+  else m=el("circle",{cx:x,cy:y,r:s,fill:ins==="Z"?col:"none",stroke:col,"stroke-width":1.3},svg);
+  const t=el("title",{},m);t.textContent=title;}
+function drawLC(i){const svg=$("#lcchart"),pts=T[i].lc;svg.innerHTML="";const W=340,H=180,l=34,r=8,tp=8,b=22;
+  const t0=Math.min(...pts.map(p=>p[0]),NOWD-10),t1=NOWD+1;
+  const mags=pts.map(p=>p[2]);let mlo=Math.min(...mags)-.25,mhi=Math.max(...mags)+.25;if(mhi-mlo<1){const c=(mhi+mlo)/2;mlo=c-.5;mhi=c+.5;}
+  const X=t=>l+(t-t0)/(t1-t0)*(W-l-r),Y=m=>tp+(m-mlo)/(mhi-mlo)*(H-tp-b);
+  const step=(mhi-mlo)>4?1:(mhi-mlo)>2?.5:.25;
+  for(let m=Math.ceil(mlo/step)*step;m<=mhi;m+=step){el("line",{x1:l,x2:W-r,y1:Y(m),y2:Y(m),stroke:"var(--line)","stroke-width":1},svg);
+    const tx=el("text",{x:l-4,y:Y(m)+3,"text-anchor":"end",class:"lbl"},svg);tx.textContent=m.toFixed(step<1?2:0).replace(/0$/,"").replace(/\.$/,"");}
+  const span=t1-t0,dstep=span>90?30:span>40?10:span>15?5:2;
+  for(let d=0;d<=span;d+=dstep){const t=NOWD-d;if(t<t0)break;el("line",{x1:X(t),x2:X(t),y1:H-b,y2:H-b+3,stroke:"var(--mute)"},svg);
+    const tx=el("text",{x:X(t),y:H-6,"text-anchor":"middle",class:"lbl"},svg);tx.textContent=d===0?"today":"−"+d+"d";}
+  el("line",{x1:X(NOWD),x2:X(NOWD),y1:tp,y2:H-b,stroke:"var(--limit)","stroke-dasharray":"3 3","stroke-width":1,opacity:.8},svg);
+  if(T[i].m!=null&&T[i].m>=mlo&&T[i].m<=mhi){}
+  const seen={};
+  for(const p of pts){const x=X(p[0]),y=Y(p[2]),c=bcol(p[1]);seen[BANDS[p[1]]||"x"]=1;
+    if(p[3]>0)el("line",{x1:x,x2:x,y1:Y(p[2]-p[3]),y2:Y(p[2]+p[3]),stroke:c,"stroke-width":1,opacity:.6},svg);
+    marker(svg,x,y,p[4],c,`${p[1]} ${p[2].toFixed(2)}±${p[3].toFixed(2)} · ${INAME[p[4]]||p[4]} · ${(NOWD-p[0]).toFixed(1)} d ago (MJD ${(61000+p[0]).toFixed(2)})`);}
+  const ins=[...new Set(pts.map(p=>p[4]))];
+  $("#lclegend").innerHTML=Object.keys(seen).map(k=>`<span><i style="background:var(--b-${k})"></i>${BNAME[k]}</span>`).join("")+
+    `<span>${ins.map(s=>({Z:"○",R:"◇",A:"□",G:"△",P:"✕"}[s]||"○")+" "+(INAME[s]||s)).join(" · ")}</span>`;}
+function drawChart(i){const svg=$("#altchart"),N=S.night,g=N.grid;const W=340,H=150,l=26,r=6,tp=8,b=20;
+  const X=t=>l+(t-N.set)/(N.rise-N.set)*(W-l-r),Y=a=>tp+(1-Math.max(0,a)/90)*(H-tp-b);svg.innerHTML="";
+  el("rect",{x:l,y:tp,width:X(N.e12)-l,height:H-tp-b,fill:"var(--faint)",opacity:.35},svg);
+  el("rect",{x:X(N.m12),y:tp,width:W-r-X(N.m12),height:H-tp-b,fill:"var(--faint)",opacity:.35},svg);
+  [0,30,60,90].forEach(a=>{el("line",{x1:l,x2:W-r,y1:Y(a),y2:Y(a),stroke:a===30?"var(--limit)":"var(--line)","stroke-dasharray":a===30?"4 4":"","stroke-width":1},svg);
+    const t=el("text",{x:l-4,y:Y(a)+3,"text-anchor":"end",class:"lbl"},svg);t.textContent=a+"°";});
+  for(let h=0;h<24;h++){const t0=new Date(N.set+TZ*3600000);const base=Date.UTC(t0.getUTCFullYear(),t0.getUTCMonth(),t0.getUTCDate(),h)-TZ*3600000;
+    [base,base+86400000].forEach(tt=>{if(tt>N.set&&tt<N.rise&&h%2===0){el("line",{x1:X(tt),x2:X(tt),y1:H-b,y2:H-b+3,stroke:"var(--mute)"},svg);
+      const t=el("text",{x:X(tt),y:H-5,"text-anchor":"middle",class:"lbl"},svg);t.textContent=pad(h);}});}
+  const path=(arr,c,w,o)=>{el("polyline",{points:arr.map((a,k)=>X(g[k])+","+Y(a)).join(" "),fill:"none",stroke:c,"stroke-width":w,opacity:o},svg);};
+  path(N.moonAlts,"var(--moon)",1,.35);path(N.alts[i],pcol(T[i].p),2,1);
+  el("line",{x1:X(S.t),x2:X(S.t),y1:tp,y2:H-b,stroke:"var(--ink)","stroke-width":1,opacity:.7},svg);}
+
+/* ---------- controls ---------- */
+function chips(){const c=$("#chips");c.innerHTML=[1,2,3,4].map(p=>`<button class="chip" type="button" data-p="${p}" aria-pressed="${S.pri.has(p)}"><i style="background:${pcol(p)}"></i>P${p} <span class="num">${T.filter(x=>x.p===p).length}</span></button>`).join("");}
+$("#chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;const p=+b.dataset.p;S.pri.has(p)?S.pri.delete(p):S.pri.add(p);chips();drawDyn();});
+$("#q").addEventListener("input",e=>{S.q=e.target.value.trim();drawDyn();});
+$("#mag").addEventListener("input",e=>{S.mag=+e.target.value;$("#magv").textContent=S.mag.toFixed(1);drawDyn();});
+$("#hideObs").addEventListener("click",e=>{S.hideObs=!S.hideObs;e.currentTarget.setAttribute("aria-pressed",S.hideObs);drawDyn();});
+$("#showAll").addEventListener("click",e=>{S.showAll=!S.showAll;e.currentTarget.setAttribute("aria-pressed",S.showAll);drawDyn();});
+$("#redBtn").addEventListener("click",e=>{const on=document.body.classList.toggle("red");e.currentTarget.setAttribute("aria-pressed",on);try{localStorage.setItem("fastsky.red",on?"1":"0");}catch(err){}drawStatic();drawDyn();});
+const sl=$("#tslider");
+function setT(t){S.t=Math.max(S.night.set,Math.min(S.night.rise,t));sl.value=Math.round((S.t-S.night.set)/60000);drawDyn();}
+sl.addEventListener("input",()=>{S.t=S.night.set+(+sl.value)*60000;drawDyn();});
+function timeline(){const N=S.night,span=N.rise-N.set,pc=t=>((t-N.set)/span*100).toFixed(2)+"%";
+  sl.max=Math.round(span/60000);
+  $("#tband").innerHTML=`<span style="left:0;width:${pc(N.e12)};background:linear-gradient(90deg,var(--limit),var(--faint))"></span>
+   <span style="left:${pc(N.e12)};width:calc(${pc(N.m12)} - ${pc(N.e12)});background:var(--dome-edge)"></span>
+   <span style="left:${pc(N.m12)};right:0;background:linear-gradient(90deg,var(--faint),var(--limit))"></span>`;
+  $("#tlabels").innerHTML=`<span>Sunset ${fmtT(N.set)}</span><span>−12° ${fmtT(N.e12)}</span><span>−12° ${fmtT(N.m12)}</span><span>Sunrise ${fmtT(N.rise)}</span>`;}
+function loadNight(ds){S.night=nightOf(ds);timeline();}
+function tonightStr(){const n=new Date(Date.now()+TZ*3600000);if(n.getUTCHours()<12)n.setUTCDate(n.getUTCDate()-1);return n.getUTCFullYear()+"-"+pad(n.getUTCMonth()+1)+"-"+pad(n.getUTCDate());}
+$("#night").addEventListener("change",e=>{if(!e.target.value)return;stopPlay();loadNight(e.target.value);setT(S.night.e12+90*60000);});
+$("#nowBtn").addEventListener("click",()=>{stopPlay();const ds=tonightStr();if($("#night").value!==ds){$("#night").value=ds;loadNight(ds);}setT(Date.now());});
+function stopPlay(){if(S.playing){clearInterval(S.playing);S.playing=null;}$("#playBtn").setAttribute("aria-pressed","false");$("#playBtn").textContent="▶ Play night";}
+$("#playBtn").addEventListener("click",()=>{if(S.playing){stopPlay();return;}
+  if(S.t>=S.night.rise-60000)S.t=S.night.set;$("#playBtn").setAttribute("aria-pressed","true");$("#playBtn").textContent="❚❚ Pause";
+  S.playing=setInterval(()=>{if(S.t>=S.night.rise){stopPlay();return;}setT(S.t+6*60000);},120);});
+
+/* ---------- boot ---------- */
+(function(){if(document.body.classList.contains("red"))$("#redBtn").setAttribute("aria-pressed","true");
+  const ds=tonightStr();$("#night").value=ds;loadNight(ds);chips();drawStatic();
+  const now=Date.now();setT(now>S.night.set&&now<S.night.rise?now:S.night.e12+90*60000);
+  $("#asof").textContent=`Queue snapshot: “${DATA.sheet}” tab of the FAST Root Sheet, ${T.length} targets, pulled ${DATA.asof.replace("T"," ").replace("Z"," UTC")}.`;})();
+</script>
