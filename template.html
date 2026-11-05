@@ -387,7 +387,7 @@ function timeline(){const N=S.night,span=N.rise-N.set,pc=t=>((t-N.set)/span*100)
    <span style="left:${pc(N.m12)};right:0;background:linear-gradient(90deg,var(--faint),var(--limit))"></span>`;
   $("#tlabels").innerHTML=`<span>Sunset ${fmtT(N.set)}</span><span>−12° ${fmtT(N.e12)}</span><span>−12° ${fmtT(N.m12)}</span><span>Sunrise ${fmtT(N.rise)}</span>`;}
 function loadNight(ds){S.night=nightOf(ds);timeline();}
-function tonightStr(){const n=new Date(Date.now()+TZ*3600000);if(n.getUTCHours()<12)n.setUTCDate(n.getUTCDate()-1);return n.getUTCFullYear()+"-"+pad(n.getUTCMonth()+1)+"-"+pad(n.getUTCDate());}
+function tonightStr(){const n=new Date(Date.now()+TZ*3600000);if(n.getUTCHours()<9)n.setUTCDate(n.getUTCDate()-1);return n.getUTCFullYear()+"-"+pad(n.getUTCMonth()+1)+"-"+pad(n.getUTCDate());}
 $("#night").addEventListener("change",e=>{if(!e.target.value)return;stopPlay();loadNight(e.target.value);setT(S.night.e12+90*60000);});
 $("#nowBtn").addEventListener("click",()=>{stopPlay();const ds=tonightStr();if($("#night").value!==ds){$("#night").value=ds;loadNight(ds);}setT(Date.now());});
 function stopPlay(){if(S.playing){clearInterval(S.playing);S.playing=null;}$("#playBtn").setAttribute("aria-pressed","false");$("#playBtn").textContent="▶ Play night";}
